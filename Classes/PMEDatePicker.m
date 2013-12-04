@@ -304,7 +304,6 @@ static const NSCalendarUnit PMEPickerViewComponents = NSCalendarUnitDay | NSCale
     [self selectRow:row inComponent:component animated:NO];
     [self setDate:date animated:YES];
     [self.dateDelegate datePicker:self didSelectDate:date];
-    APLLogDebug(@"%@", date);
 }
 
 @end
