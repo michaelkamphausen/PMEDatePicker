@@ -17,9 +17,9 @@ Pod::Spec.new do |s|
 
   s.license      = { :type => 'MIT', :file => 'LICENSE' }
   
-  s.author       = { "Michael Kamphausen" }
+  s.author       = 'Michael Kamphausen'
   
-  s.platform     = :ios
+  s.platform     = :ios, '5.0'
 
   s.source       = { :git => "https://github.com/michaelkamphausen/PMEDatePicker.git", :tag => s.version.to_s }
 
