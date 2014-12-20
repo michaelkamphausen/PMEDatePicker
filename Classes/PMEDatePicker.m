@@ -1,5 +1,6 @@
 //  Created by Michael Kamphausen on 06.11.13.
 //  Copyright (c) 2013 Michael Kamphausen. All rights reserved.
+//  Contribution (c) 2014 Sebastien REMY
 //
 
 #import "PMEDatePicker.h"
@@ -296,9 +297,6 @@ static const NSCalendarUnit PMEPickerViewComponents = NSCalendarUnitDay | NSCale
     }
     return 0.;
 }
-
-
-
 
 - (void)pickerView:(UIPickerView *)pickerView didSelectRow:(NSInteger)row inComponent:(NSInteger)component {
     row = row % [self realNumberOfRowsInComponent:component];
