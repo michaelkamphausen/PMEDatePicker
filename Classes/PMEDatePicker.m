@@ -251,15 +251,17 @@ static const NSCalendarUnit PMEPickerViewComponents = NSCalendarUnitDay | NSCale
 - (NSString *)pickerView:(UIPickerView *)pickerView titleForRow:(NSInteger)row forComponent:(NSInteger)component {
     row = row % [self realNumberOfRowsInComponent:component];
     if (component == self.dayComponent) {
-        return [NSString stringWithFormat:@"%i", row + 1];
+        long l = row + 1;
+        return [NSString stringWithFormat:@"%li", l];
     } else if (component == self.monthComponent) {
         return self.shortMonthNames[row];
     } else if (component == self.yearComponent) {
-        return [NSString stringWithFormat:@"%i", [self yearForRow:row]];
+        return [NSString stringWithFormat:@"%li", (long)[self yearForRow:row]];
     } else if (component == self.hourComponent) {
-        return [NSString stringWithFormat:self.is24HourMode ? @"%02d" : @"%d", (!self.is24HourMode && row == 0) ? 12 : row];
+        long l = (!self.is24HourMode && row == 0) ? 12 : row;
+        return [NSString stringWithFormat:self.is24HourMode ? @"%02ld" : @"%ld", l];
     } else if (component == self.minuteComponent) {
-        return [NSString stringWithFormat:@"%02d", row];
+        return [NSString stringWithFormat:@"%02ld", (long)row];
     } else if (component == self.ampmComponent) {
         return self.ampmSymbols[row];
     }
