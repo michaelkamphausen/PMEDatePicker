@@ -63,7 +63,7 @@ static const NSCalendarUnit PMEPickerViewComponents = NSCalendarUnitDay | NSCale
     if ([self isEndlessComponent:component]) {
         NSInteger numberOfRows = [self realNumberOfRowsInComponent:component];
         if (numberOfRows > 0) {
-        middleBlockIndex = ((NSInteger)((PMEPickerViewMaxNumberOfRows / 2) / numberOfRows)) * numberOfRows;
+            middleBlockIndex = ((NSInteger)((PMEPickerViewMaxNumberOfRows / 2) / numberOfRows)) * numberOfRows;
         }
     }
     [super selectRow:middleBlockIndex + row inComponent:component animated:animated];
@@ -74,7 +74,11 @@ static const NSCalendarUnit PMEPickerViewComponents = NSCalendarUnitDay | NSCale
 }
 
 - (NSInteger)realSelectedRowInComponent:(NSInteger)component {
-    return [self selectedRowInComponent:component] % [self realNumberOfRowsInComponent:component];
+    if ([self selectedRowInComponent:component] > 0) {
+        return [self selectedRowInComponent:component] % [self realNumberOfRowsInComponent:component];
+    } else {
+        return [self selectedRowInComponent:component];
+    }
 }
 
 - (NSInteger)realNumberOfRowsInComponent:(NSInteger)component {
@@ -301,7 +305,9 @@ static const NSCalendarUnit PMEPickerViewComponents = NSCalendarUnitDay | NSCale
 }
 
 - (void)pickerView:(UIPickerView *)pickerView didSelectRow:(NSInteger)row inComponent:(NSInteger)component {
-    row = row % [self realNumberOfRowsInComponent:component];
+    if (row > 0) {
+        row = row % [self realNumberOfRowsInComponent:component];
+    }
     NSDate* date = self.date;
     if ([date timeIntervalSince1970] > [self.maximumDate timeIntervalSince1970]) {
         date = self.maximumDate;
