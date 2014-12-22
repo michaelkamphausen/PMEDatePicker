@@ -12,7 +12,7 @@ DatePicker with configurable date components.
 ## Installation
 Install via cocoapods by adding this to your Podfile:
 
-	pod "PMEDatePicker", "~> 0.0.1"
+	pod "PMEDatePicker"
 
 ## Usage
 Import header file:
