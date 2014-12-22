@@ -1,5 +1,6 @@
 //  Created by Michael Kamphausen on 06.11.13.
 //  Copyright (c) 2013 Michael Kamphausen. All rights reserved.
+//  Contribution (c) 2014 Sebastien REMY
 //
 
 #import "PMEDatePicker.h"
@@ -61,7 +62,9 @@ static const NSCalendarUnit PMEPickerViewComponents = NSCalendarUnitDay | NSCale
     NSInteger middleBlockIndex = 0;
     if ([self isEndlessComponent:component]) {
         NSInteger numberOfRows = [self realNumberOfRowsInComponent:component];
-        middleBlockIndex = ((NSInteger)((PMEPickerViewMaxNumberOfRows / 2) / numberOfRows)) * numberOfRows;
+        if (numberOfRows > 0) {
+            middleBlockIndex = ((NSInteger)((PMEPickerViewMaxNumberOfRows / 2) / numberOfRows)) * numberOfRows;
+        }
     }
     [super selectRow:middleBlockIndex + row inComponent:component animated:animated];
 }
@@ -71,7 +74,11 @@ static const NSCalendarUnit PMEPickerViewComponents = NSCalendarUnitDay | NSCale
 }
 
 - (NSInteger)realSelectedRowInComponent:(NSInteger)component {
-    return [self selectedRowInComponent:component] % [self realNumberOfRowsInComponent:component];
+    if ([self selectedRowInComponent:component] > 0) {
+        return [self selectedRowInComponent:component] % [self realNumberOfRowsInComponent:component];
+    } else {
+        return [self selectedRowInComponent:component];
+    }
 }
 
 - (NSInteger)realNumberOfRowsInComponent:(NSInteger)component {
@@ -251,15 +258,17 @@ static const NSCalendarUnit PMEPickerViewComponents = NSCalendarUnitDay | NSCale
 - (NSString *)pickerView:(UIPickerView *)pickerView titleForRow:(NSInteger)row forComponent:(NSInteger)component {
     row = row % [self realNumberOfRowsInComponent:component];
     if (component == self.dayComponent) {
-        return [NSString stringWithFormat:@"%i", row + 1];
+        long l = row + 1;
+        return [NSString stringWithFormat:@"%li", l];
     } else if (component == self.monthComponent) {
         return self.shortMonthNames[row];
     } else if (component == self.yearComponent) {
-        return [NSString stringWithFormat:@"%i", [self yearForRow:row]];
+        return [NSString stringWithFormat:@"%li", (long)[self yearForRow:row]];
     } else if (component == self.hourComponent) {
-        return [NSString stringWithFormat:self.is24HourMode ? @"%02d" : @"%d", (!self.is24HourMode && row == 0) ? 12 : row];
+        long l = (!self.is24HourMode && row == 0) ? 12 : row;
+        return [NSString stringWithFormat:self.is24HourMode ? @"%02ld" : @"%ld", l];
     } else if (component == self.minuteComponent) {
-        return [NSString stringWithFormat:@"%02d", row];
+        return [NSString stringWithFormat:@"%02ld", (long)row];
     } else if (component == self.ampmComponent) {
         return self.ampmSymbols[row];
     }
@@ -296,7 +305,9 @@ static const NSCalendarUnit PMEPickerViewComponents = NSCalendarUnitDay | NSCale
 }
 
 - (void)pickerView:(UIPickerView *)pickerView didSelectRow:(NSInteger)row inComponent:(NSInteger)component {
-    row = row % [self realNumberOfRowsInComponent:component];
+    if (row > 0) {
+        row = row % [self realNumberOfRowsInComponent:component];
+    }
     NSDate* date = self.date;
     if ([date timeIntervalSince1970] > [self.maximumDate timeIntervalSince1970]) {
         date = self.maximumDate;
