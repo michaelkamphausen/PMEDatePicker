@@ -1,6 +1,5 @@
 //  Created by Michael Kamphausen on 06.11.13.
 //  Copyright (c) 2013 Michael Kamphausen. All rights reserved.
-//  Contribution (c) 2014 Sebastien REMY
 //
 
 #import "PMEDatePicker.h"
@@ -14,6 +13,7 @@
 @property (nonatomic, assign) NSInteger hourComponent;
 @property (nonatomic, assign) NSInteger minuteComponent;
 @property (nonatomic, assign) NSInteger ampmComponent;
+@property (nonatomic, assign) NSInteger numberOfDays;
 @property (nonatomic, strong) NSArray* shortMonthNames;
 @property (nonatomic, strong) NSArray* ampmSymbols;
 @property (nonatomic, strong) NSArray* uniqueSymbols;
@@ -52,7 +52,11 @@ static const NSCalendarUnit PMEPickerViewComponents = NSCalendarUnitDay | NSCale
     self.dateFormatTemplate = @"yyyyMMMdjmm";
     self.minimumDate = [NSDate distantPast];
     self.maximumDate = [NSDate distantFuture];
+    self.numberOfDays = 31; // default to ensure no divide by zero error when setting self.date before updateNumberOfDays
     self.date = [NSDate date];
+    self.textColor = [UIColor blackColor];
+    self.textFont = [UIFont systemFontOfSize:20];
+    [self updateNumberOfDays];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(refreshCurrentLocale) name:NSCurrentLocaleDidChangeNotification object:nil];
 }
 
@@ -62,10 +66,10 @@ static const NSCalendarUnit PMEPickerViewComponents = NSCalendarUnitDay | NSCale
     NSInteger middleBlockIndex = 0;
     if ([self isEndlessComponent:component]) {
         NSInteger numberOfRows = [self realNumberOfRowsInComponent:component];
-        if (numberOfRows > 0) {
-            middleBlockIndex = ((NSInteger)((PMEPickerViewMaxNumberOfRows / 2) / numberOfRows)) * numberOfRows;
-        }
+        middleBlockIndex = ((NSInteger)((PMEPickerViewMaxNumberOfRows / 2) / numberOfRows)) * numberOfRows;
     }
+    if(row < 0)
+        row = 0;
     [super selectRow:middleBlockIndex + row inComponent:component animated:animated];
 }
 
@@ -74,16 +78,12 @@ static const NSCalendarUnit PMEPickerViewComponents = NSCalendarUnitDay | NSCale
 }
 
 - (NSInteger)realSelectedRowInComponent:(NSInteger)component {
-    if ([self selectedRowInComponent:component] > 0) {
-        return [self selectedRowInComponent:component] % [self realNumberOfRowsInComponent:component];
-    } else {
-        return [self selectedRowInComponent:component];
-    }
+    return [self selectedRowInComponent:component] % [self realNumberOfRowsInComponent:component];
 }
 
 - (NSInteger)realNumberOfRowsInComponent:(NSInteger)component {
     if (component == self.dayComponent) {
-        return 31;
+        return self.numberOfDays;
     } else if (component == self.monthComponent) {
         return 12;
     } else if (component == self.yearComponent) {
@@ -97,7 +97,68 @@ static const NSCalendarUnit PMEPickerViewComponents = NSCalendarUnitDay | NSCale
     } else if (component == self.ampmComponent) {
         return 2;
     }
-    return 0;
+    return -1;
+}
+
+- (void)updateNumberOfDays
+{
+    NSDateComponents *currentSelectedDateComponents = [[NSCalendar currentCalendar] components:PMEPickerViewComponents
+                                                                                      fromDate:self.date];
+
+    switch (currentSelectedDateComponents.month)
+    {
+        case 1:
+            self.numberOfDays = 31;
+            break;
+        case 2:
+            if(self.yearComponent == NSNotFound ||
+               currentSelectedDateComponents.year < 1900 ||
+               currentSelectedDateComponents.year > [[[NSCalendar currentCalendar] components:NSYearCalendarUnit
+                                                                                                                                                                      fromDate:[NSDate date]] year])
+            {
+                // Year is disabled, assume leap year so user has access to day 29
+
+                self.numberOfDays = 29;
+            } else {
+                // Year is enabled, determine whether year is leap year
+
+                self.numberOfDays = [self isLeapYear:currentSelectedDateComponents.year] ? 29 : 28;
+            }
+            break;
+        case 3:
+            self.numberOfDays = 31;
+            break;
+        case 4:
+            self.numberOfDays = 30;
+            break;
+        case 5:
+            self.numberOfDays = 31;
+            break;
+        case 6:
+            self.numberOfDays = 30;
+            break;
+        case 7:
+            self.numberOfDays = 31;
+            break;
+        case 8:
+            self.numberOfDays = 31;
+            break;
+        case 9:
+            self.numberOfDays = 30;
+            break;
+        case 10:
+            self.numberOfDays = 31;
+            break;
+        case 11:
+            self.numberOfDays = 30;
+            break;
+        case 12:
+            self.numberOfDays = 31;
+            break;
+        default:
+            self.numberOfDays = 31;
+            break;
+    }
 }
 
 - (NSInteger)rowForYear:(NSInteger)year {
@@ -122,7 +183,19 @@ static const NSCalendarUnit PMEPickerViewComponents = NSCalendarUnitDay | NSCale
     self.shortMonthNames = nil;
     self.ampmSymbols = nil;
     self.dateFormatTemplate = self.dateFormatTemplate;
-    [self.dateDelegate datePicker:self didSelectDate:self.date];
+    [self didSelectDate];
+}
+
+- (BOOL)isLeapYear:(NSInteger)year
+{
+    if (year % 4 != 0)
+        return NO;
+    else if (year % 400 == 0)
+        return YES;
+    else if (year % 100 == 0)
+        return NO;
+    else
+        return YES;
 }
 
 #pragma mark - getter & setter
@@ -138,6 +211,9 @@ static const NSCalendarUnit PMEPickerViewComponents = NSCalendarUnitDay | NSCale
     }
     if (self.yearComponent != NSNotFound) {
         [components setYear:[self yearForRow:[self realSelectedRowInComponent:self.yearComponent]]];
+    } else {
+        // Return a leap year so Feb 29 is accepted as valid when no year is utilized
+        [components setYear:2004];
     }
     if (self.hourComponent != NSNotFound) {
         NSInteger offset = !self.is24HourMode && ([self realSelectedRowInComponent:self.ampmComponent] == 1) ? 12 : 0;
@@ -148,6 +224,37 @@ static const NSCalendarUnit PMEPickerViewComponents = NSCalendarUnitDay | NSCale
     }
     
     return [components date];
+}
+
+- (NSDate *)referenceDate
+{
+    NSDateComponents *dateComponents = [NSDateComponents new];
+    [dateComponents setCalendar:[NSCalendar currentCalendar]];
+
+    if (self.yearComponent == NSNotFound)
+    {
+        [dateComponents setYear:2004];
+    }
+
+    return [dateComponents date];
+}
+
+- (void)setSeconds:(NSTimeInterval)seconds
+{
+    NSDateComponents *dateComponents = [NSDateComponents new];
+    [dateComponents setCalendar:[NSCalendar currentCalendar]];
+
+    if (self.yearComponent == NSNotFound)
+    {
+        [dateComponents setYear:2004];
+    }
+
+    [self setDate:[NSDate dateWithTimeInterval:seconds sinceDate:self.referenceDate] animated:YES];
+}
+
+- (NSTimeInterval)seconds
+{
+    return [self.date timeIntervalSinceDate:self.referenceDate];
 }
 
 - (void)setDate:(NSDate *)date {
@@ -179,12 +286,22 @@ static const NSCalendarUnit PMEPickerViewComponents = NSCalendarUnitDay | NSCale
 }
 
 - (void)setMaximumDate:(NSDate *)maximumDate {
-    _maximumDate = maximumDate;
+    _maximumDate = maximumDate ? maximumDate : [NSDate distantFuture];
     [self updatePicker];
 }
 
 - (void)setMinimumDate:(NSDate *)minimumDate {
-    _minimumDate = minimumDate;
+    _minimumDate = minimumDate ? minimumDate : [NSDate distantPast];
+    [self updatePicker];
+}
+
+- (void)setTextColor:(UIColor *)textColor {
+    _textColor = textColor ? textColor : [UIColor blackColor];
+    [self updatePicker];
+}
+
+- (void)setTextFont:(UIFont *)textFont {
+    _textFont = textFont ? textFont : [UIFont systemFontOfSize:20];
     [self updatePicker];
 }
 
@@ -258,15 +375,13 @@ static const NSCalendarUnit PMEPickerViewComponents = NSCalendarUnitDay | NSCale
 - (NSString *)pickerView:(UIPickerView *)pickerView titleForRow:(NSInteger)row forComponent:(NSInteger)component {
     row = row % [self realNumberOfRowsInComponent:component];
     if (component == self.dayComponent) {
-        long l = row + 1;
-        return [NSString stringWithFormat:@"%li", l];
+        return [NSString stringWithFormat:@"%ld", (long)row + 1];
     } else if (component == self.monthComponent) {
         return self.shortMonthNames[row];
     } else if (component == self.yearComponent) {
-        return [NSString stringWithFormat:@"%li", (long)[self yearForRow:row]];
+        return [NSString stringWithFormat:@"%ld", (long)[self yearForRow:row]];
     } else if (component == self.hourComponent) {
-        long l = (!self.is24HourMode && row == 0) ? 12 : row;
-        return [NSString stringWithFormat:self.is24HourMode ? @"%02ld" : @"%ld", l];
+        return [NSString stringWithFormat:self.is24HourMode ? @"%02ld" : @"%ld", (!self.is24HourMode && row == 0) ? 12 : (long)row];
     } else if (component == self.minuteComponent) {
         return [NSString stringWithFormat:@"%02ld", (long)row];
     } else if (component == self.ampmComponent) {
@@ -279,11 +394,12 @@ static const NSCalendarUnit PMEPickerViewComponents = NSCalendarUnitDay | NSCale
     UILabel* label = (UILabel*)view;
     if (!label) {
         label = [UILabel new];
-        label.font = [UIFont systemFontOfSize:20.];
         label.textAlignment = NSTextAlignmentCenter;
     }
+    label.textColor = self.textColor;
+    label.font = self.textFont;
     label.text = [self pickerView:pickerView titleForRow:row forComponent:component];
-    
+
     return label;
 }
 
@@ -305,16 +421,29 @@ static const NSCalendarUnit PMEPickerViewComponents = NSCalendarUnitDay | NSCale
 }
 
 - (void)pickerView:(UIPickerView *)pickerView didSelectRow:(NSInteger)row inComponent:(NSInteger)component {
-    if (row > 0) {
-        row = row % [self realNumberOfRowsInComponent:component];
-    }
+    row = row % [self realNumberOfRowsInComponent:component];
     NSDate* date = self.date;
     if ([date timeIntervalSince1970] > [self.maximumDate timeIntervalSince1970]) {
         date = self.maximumDate;
     }
+    if ([date timeIntervalSince1970] < [self.minimumDate timeIntervalSince1970]) {
+        date = self.minimumDate;
+    }
     [self selectRow:row inComponent:component animated:NO];
     [self setDate:date animated:YES];
-    [self.dateDelegate datePicker:self didSelectDate:date];
+    [self didSelectDate];
+    [self updateNumberOfDays];
+    [self updatePicker];
+}
+
+- (void)didSelectDate
+{
+    [self.dateDelegate datePicker:self didSelectDate:self.date];
+
+    if (self.handler)
+    {
+        self.handler(self.date, self.seconds);
+    }
 }
 
 @end
